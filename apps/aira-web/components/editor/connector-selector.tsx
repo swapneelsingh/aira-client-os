@@ -44,6 +44,7 @@ interface ConnectorItemProps {
   onIntegrate?: () => void;
 }
 
+
 function ConnectorItem({
   connector,
   isSelected,
@@ -141,10 +142,10 @@ function ConnectorItem({
             <button
               type="button"
               onClick={() => onIntegrate?.()}
-              className="flex w-full items-center gap-2 border-t border-border bg-primary/5 px-3 py-2.5"
+              className="group flex w-full items-center gap-2 border-t border-border bg-primary/5 px-3 py-2.5 transition-colors hover:bg-primary/10 cursor-pointer"
             >
-              <Link2 className="h-3.5 w-3.5 text-primary" />
-              <span className="flex-1 text-left text-xs font-medium text-primary">
+              <Link2 className="h-3.5 w-3.5 text-primary transition-transform group-hover:scale-110" />
+              <span className="flex-1 text-left text-xs font-medium text-primary group-hover:underline group-hover:underline-offset-2">
                 Would you like to integrate this connector?
               </span>
             </button>

@@ -44,6 +44,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/toast';
 
 const INTERVAL_TO_DAYS: Record<IntervalType, number> = {
   none: 0,
@@ -144,6 +145,7 @@ interface EditRuleFormProps {
 
 function EditRuleForm({ rule, connectors, groups }: EditRuleFormProps) {
   const router = useRouter();
+  const { showToast } = useToast();
 
   // Mutations
   const { mutate: updateRule, isPending: isUpdating } = useUpdateRule();
@@ -170,6 +172,7 @@ function EditRuleForm({ rule, connectors, groups }: EditRuleFormProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [groupSearchQuery, setGroupSearchQuery] = useState('');
+  const [error, setError] = useState("");
 
   // Derived state
   const suggestedConnectorIds = useMemo(
@@ -195,8 +198,13 @@ function EditRuleForm({ rule, connectors, groups }: EditRuleFormProps) {
   }, [groups, groupSearchQuery]);
 
   const isLoading = isUpdating || isDeleting;
+  // const canSave =
+  //   rawText.trim().length > 0 &&
+  //   (showGroupSelector ? selectedGroups.length > 0 : true) &&
+  //   (scheduleEnabled ? scheduleInterval !== 'none' : true) &&
+  //   !isLoading;
+  // We removed 'rawText.trim().length > 0' so the user can click and receive feedback
   const canSave =
-    rawText.trim().length > 0 &&
     (showGroupSelector ? selectedGroups.length > 0 : true) &&
     (scheduleEnabled ? scheduleInterval !== 'none' : true) &&
     !isLoading;
@@ -206,44 +214,43 @@ function EditRuleForm({ rule, connectors, groups }: EditRuleFormProps) {
     // No-op: connected services that are suggested are automatically selected
   }, []);
 
-  const handleSave = useCallback(() => {
+const handleSave = useCallback(() => {
+    // 🚨 CUSTOM TOAST VALIDATION
+    if (!rawText.trim()) {
+      showToast(
+        "Please describe what this rule should do", 
+        "error" // 👈 Triggers the AlertCircle icon
+      );
+      return; // Stop saving
+    }
+
+    // 3. Standard checks
     if (!canSave) return;
 
-    const ruleData: {
-      rule_id: string;
-      w_id: string[];
-      raw_text: string;
-      status: 'active' | 'inactive';
-      trigger_time?: string;
-      interval?: number;
-    } = {
+    // 4. Proceed with saving
+    const ruleData = {
       rule_id: rule.rule_id,
       w_id: selectedGroups,
       raw_text: rawText,
       status: rule.status,
+      // Add trigger_time and interval if scheduleEnabled...
+      ...(scheduleEnabled && {
+        trigger_time: buildTriggerTimeUTC(scheduleTime),
+        interval: INTERVAL_TO_DAYS[scheduleInterval]
+      })
     };
-
-    if (scheduleEnabled) {
-      ruleData.trigger_time = buildTriggerTimeUTC(scheduleTime);
-      ruleData.interval = INTERVAL_TO_DAYS[scheduleInterval];
-    }
 
     updateRule(ruleData, {
       onSuccess: () => {
+        // 🎉 Success Toast
+        showToast("Rule saved successfully", "success");
         router.push(ROUTES.WORKSPACE);
       },
     });
   }, [
-    canSave,
-    rule.rule_id,
-    rule.status,
-    rawText,
-    selectedGroups,
-    scheduleEnabled,
-    scheduleTime,
-    scheduleInterval,
-    updateRule,
-    router,
+    canSave, rule, rawText, selectedGroups, 
+    scheduleEnabled, scheduleTime, scheduleInterval, 
+    updateRule, router, showToast // <--- Don't forget to add showToast to dependencies
   ]);
 
   const handleDelete = useCallback(() => {
@@ -382,6 +389,17 @@ function EditRuleForm({ rule, connectors, groups }: EditRuleFormProps) {
 
         {/* Bottom Save Button */}
         <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background px-5 py-4">
+          {/* 👇 ERROR MESSAGE DISPLAY */}
+          {error && (
+            <motion.p
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-3 text-center text-sm font-medium text-red-500"
+            >
+              {error}
+            </motion.p>
+          )}
+          
           <Button
             onClick={handleSave}
             disabled={!canSave}

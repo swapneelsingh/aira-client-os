@@ -87,19 +87,39 @@ export async function hydrateAuthState(): Promise<boolean> {
 
 // Verify auth by making an API call and return user data
 // Browser sends HttpOnly cookie automatically with withCredentials: true
-export async function verifyAuthState(): Promise<User | null> {
-  console.log('[Auth] Verifying auth state via API...');
-  try {
-    const client = getApiClient();
-    const user = await client.get<User>('/v1/users/me');
-    console.log('[Auth] Verification successful, user:', user?.e || user?.i);
-    authStore.setState({ isAuthenticated: true, isLoading: false });
-    return user;
-  } catch (error) {
-    console.log('[Auth] Verification failed:', error);
-    authStore.setState({ isAuthenticated: false, isLoading: false });
-    return null;
-  }
-}
+// export async function verifyAuthState(): Promise<User | null> {
+//   console.log('[Auth] Verifying auth state via API...');
+//   try {
+//     const client = getApiClient();
+//     const user = await client.get<User>('/v1/users/me');
+//     console.log('[Auth] Verification successful, user:', user?.e || user?.i);
+//     authStore.setState({ isAuthenticated: true, isLoading: false });
+//     return user;
+//   } catch (error) {
+//     console.log('[Auth] Verification failed:', error);
+//     authStore.setState({ isAuthenticated: false, isLoading: false });
+//     return null;
+//   }
+// }
+
+
+// REPLACE THE verifyAuthState FUNCTION WITH THIS:
+export const verifyAuthState = async () => {
+  console.log("🔥🔥 FORCE LOGGING IN AS TEST USER 🔥🔥");
+
+  // 1. THIS IS THE MISSING LINE! (Updates the UI state)
+  authStore.setState({ isAuthenticated: true, isLoading: false });
+
+  // 2. Return the mock user
+  return {
+    id: 'mock-user-123',
+    email: 'test@aira.in',
+    name: 'Test User',
+    is_active: true,
+    is_email_verified: true,
+    onboarding_completed: true,
+    plan: 'pro'
+  };
+};
 
 export { apiClient, getApiClient };

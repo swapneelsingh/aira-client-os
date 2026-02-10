@@ -21,6 +21,7 @@ import {
 } from '@repo/core';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ROUTES } from '@/lib/constants';
+import { InstructionSteps } from '@/components/whatsapp/instruction-steps';
 
 function formatRelativeTime(dateString: string): string {
   const now = Date.now();
@@ -242,7 +243,7 @@ export default function HubPage() {
   );
 
   // Get user's first name or fallback to 'there'
-  const userName = user?.f_n || 'there';
+  const userName = user?.f_n || 'AiRA User';
 
   return (
     <ScreenLayout maxWidth="xl" className="py-6">

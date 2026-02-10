@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { useToast } from '@/components/ui/toast';
 import {
   ChevronLeft,
   Check,
@@ -40,6 +41,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { CreateRuleRequest } from '../../../../../../packages/core/src/schemas';
+import { InstructionSteps } from '@/components/whatsapp/instruction-steps';
 
 const INTERVAL_TO_DAYS: Record<IntervalType, number> = {
   none: 0,
@@ -108,6 +110,7 @@ function detectKeywords(text: string): string[] {
 
 export default function NewRulePage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const searchParams = useSearchParams();
 
   // Fetch connectors status
@@ -219,7 +222,6 @@ export default function NewRulePage() {
   }, [groups, groupSearchQuery]);
 
   const canSave =
-    rawText.trim().length > 0 &&
     (showGroupSelector ? selectedGroups.length > 0 : true) &&
     (scheduleEnabled ? scheduleInterval !== 'none' : true) &&
     !isCreating;
@@ -263,7 +265,48 @@ export default function NewRulePage() {
     [router, connectConnector],
   );
 
-  const handleSave = useCallback(() => {
+  // const handleSave = useCallback(() => {
+  //   if (!canSave) return;
+
+  //   const ruleData: CreateRuleRequest = {
+  //     w_id: selectedGroups,
+  //     raw_text: rawText,
+  //     status: 'active',
+  //     ...(suggestionId && { suggestion_id: suggestionId }),
+  //   };
+
+  //   if (scheduleEnabled) {
+  //     ruleData.trigger_time = buildTriggerTimeUTC(scheduleTime);
+  //     ruleData.interval = INTERVAL_TO_DAYS[scheduleInterval];
+  //   }
+
+  //   createRule(ruleData, {
+  //     onSuccess: () => {
+  //       router.back();
+  //     },
+  //   });
+  // }, [
+  //   canSave,
+  //   rawText,
+  //   selectedGroups,
+  //   scheduleEnabled,
+  //   scheduleTime,
+  //   scheduleInterval,
+  //   createRule,
+  //   router,
+  //   suggestionId,
+  // ]);
+const handleSave = useCallback(() => {
+    // 🚨 1. VALIDATION CHECK (The Fix)
+    if (!rawText.trim()) {
+      showToast(
+        "Please describe what this rule should do", 
+        "error"
+      );
+      return; 
+    }
+
+    // 2. Standard safety check
     if (!canSave) return;
 
     const ruleData: CreateRuleRequest = {
@@ -280,6 +323,8 @@ export default function NewRulePage() {
 
     createRule(ruleData, {
       onSuccess: () => {
+        // 🎉 Success Toast
+        showToast("Rule created successfully", "success");
         router.back();
       },
     });
@@ -293,8 +338,8 @@ export default function NewRulePage() {
     createRule,
     router,
     suggestionId,
+    showToast, // 👈 Add this to dependencies
   ]);
-
   return (
     <ScreenLayout maxWidth="lg" className="relative min-h-screen pb-24">
       <motion.div

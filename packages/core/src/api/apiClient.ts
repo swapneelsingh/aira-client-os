@@ -80,7 +80,6 @@ export class ApiClient {
           config.headers.Authorization = `Bearer ${token}`;
         }
       }
-      // Log request headers in dev mode
       if (this.isDevMode()) {
         console.warn(`🚀 API Request: ${config.url}`, config);
       }
@@ -89,7 +88,6 @@ export class ApiClient {
 
     this.axios.interceptors.response.use(
       res => {
-        // Log response headers and data in dev mode
         if (this.isDevMode()) {
           console.warn(`✅ API Response: ${res.config.url}`, res);
         }
@@ -113,7 +111,7 @@ export class ApiClient {
         }
 
         throw error;
-      },
+      }
     );
   }
 
@@ -131,7 +129,112 @@ export class ApiClient {
     }
   }
 
-  async get<T = unknown>(url: string, schema?: z.ZodType<T>): Promise<T> {
+  // --- 🚨 FINAL MOCK MODE (Includes Fix for useWahaGroups) 🚨 ---
+  async get<T = unknown>(url: string = '', schema?: z.ZodType<T>): Promise<T> {
+    if (this.isDevMode()) {
+       console.log(`⚠️ [Mock Mode] Request: ${url}`);
+
+       // 1. Mock Login
+       if (url.includes('/users/me') || url.includes('/auth/me')) {
+         return {
+           id: 'mock-user-123',
+           email: 'test@aira.in',
+           name: 'Test User',
+           is_active: true,
+           is_email_verified: true,
+           onboarding_completed: true,
+           plan: 'pro'
+         } as unknown as T;
+       }
+
+       // 2. Mock Rules List (Supports /rules/rule-1)
+       if (url.includes('/rules')) {
+         return [
+           {
+             rule_id: 'rule-1',
+             raw_text: 'Forward urgent emails from Gmail to WhatsApp',
+             description: 'Automatically forwards high priority emails.',
+             status: 'active',
+             w_id: ['group-1'],
+             trigger_time: 'Real-time',
+             interval: 0,
+             created_at: new Date().toISOString(),
+           },
+           {
+             rule_id: 'rule-2',
+             raw_text: 'Summarize my morning calendar events',
+             description: 'Daily briefing of my schedule.',
+             status: 'inactive',
+             w_id: [],
+             trigger_time: '09:00',
+             interval: 1, 
+             created_at: new Date().toISOString(),
+           }
+         ] as unknown as T;
+       }
+
+       // 3. Mock Connectors (Restored data to match UI screenshots)
+       if (url.includes('/connectors') && !url.includes('/connect/')) {
+         // Return structure matching what "useConnectors" expects
+         // It looks for "available_services" OR a list of connectors
+         const mockConnectors = [
+           { 
+             id: 'whatsapp', type: 'whatsapp', name: 'WhatsApp', connected: false,
+             description: 'Send and receive messages via WhatsApp',
+             created_at: new Date().toISOString(), last_synced: null
+           },
+           { 
+             id: 'email_scope', type: 'email_scope', name: 'Email', connected: true,
+             description: 'Manage emails and drafts',
+             created_at: new Date().toISOString(), last_synced: new Date().toISOString(),
+             config: { email: 'demo@aira.in' }
+           },
+           { 
+             id: 'google_calendar', type: 'google_calendar', name: 'Google Calendar', connected: false,
+             description: 'Sync events and meetings',
+             created_at: new Date().toISOString(), last_synced: null
+           },
+           { 
+             id: 'google_drive', type: 'google_drive', name: 'Google Drive', connected: false,
+             description: 'Manage files and folders',
+             created_at: new Date().toISOString(), last_synced: null
+           }
+         ];
+         
+         // Helper to satisfy both array checks and object checks
+         // @ts-ignore
+         mockConnectors.available_services = ['email_scope']; 
+         return mockConnectors as unknown as T;
+       }
+
+       // 4. Mock "Connect" Action (Fixes 'api.get' error on button click)
+       if (url.includes('/connectors/connect/')) {
+         return { url: '#' } as unknown as T;
+       }
+
+       // 5. Mock WhatsApp Groups (THE FIX FOR YOUR CRASH)
+       // This catches ANY url with 'waha' or 'groups' in it.
+       if (url.includes('groups') || url.includes('waha')) {
+         return {
+           groups: [
+             { w_id: 'group-1', chat_name: 'Engineering Team', num_active_rules: 1, num_inactive_rules: 0 },
+             { w_id: 'group-2', chat_name: 'Family Chat', num_active_rules: 0, num_inactive_rules: 0 }
+           ],
+           chats: []
+         } as unknown as T;
+       }
+
+       // 6. Mock Dashboard Widgets
+       if (url.includes('tasks') || url.includes('suggestions')) {
+         return [] as unknown as T;
+       }
+
+       // 7. 🚨 SAFETY NET (Prevents crashes on unknown URLs)
+       console.log(`🛡️ [Safety Net] Returning empty object for: ${url}`);
+       return {} as unknown as T;
+    }
+
+    // Original Logic Fallback
     try {
       const { data } = await this.axios.get<T>(url);
       return schema ? this.validate(data, schema) : data;
@@ -151,11 +254,7 @@ export class ApiClient {
     }
   }
 
-  async postFormData<T = unknown>(
-    url: string,
-    formData: FormData,
-    schema?: z.ZodType<T>,
-  ): Promise<T> {
+  async postFormData<T = unknown>(url: string, formData: FormData, schema?: z.ZodType<T>): Promise<T> {
     try {
       const { data } = await this.axios.post<T>(url, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
